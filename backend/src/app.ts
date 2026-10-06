@@ -24,7 +24,7 @@ app.use((_req, res, next) => {
 app.get("/api/health", (_req, res) => {
   res.json({
     success: true,
-    message: "CampusBite API is running",
+    message: "K-Eat API is running",
     data: { status: "ok" },
   });
 });

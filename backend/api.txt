@@ -1,0 +1,2333 @@
+CampusBite API — API TEST INPUT / EXPECTED OUTPUT
+
+======================================================================
+COMMON RESPONSE SHAPES
+======================================================================
+
+SUCCESS:
+{
+  "success": true,
+  "message": "<message>",
+  "data": <expected data>
+}
+
+PAGINATED SUCCESS:
+{
+  "success": true,
+  "message": "<message>",
+  "data": [ ... ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 0
+  }
+}
+
+VALIDATION / APPLICATION ERROR:
+{
+  "success": false,
+  "message": "<expected error message>"
+}
+
+Protected endpoints require:
+Authorization: Bearer <JWT>
+
+Database starts completely empty.
+Use returned IDs/tokens from earlier successful requests in later requests.
+
+
+======================================================================
+1. HEALTH
+======================================================================
+
+GET /api/health
+
+INPUT:
+No headers required.
+No body.
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "CampusBite API is running",
+  "data": {
+    "status": "ok"
+  }
+}
+
+EDGE INPUT:
+GET /api/health with any query string.
+
+EXPECTED OUTPUT:
+HTTP 200 with the same health response.
+
+
+GET /api/health/db
+
+INPUT:
+No headers required.
+No body.
+
+EXPECTED OUTPUT WHEN DATABASE IS REACHABLE:
+HTTP 200
+{
+  "success": true,
+  "message": "Database reachable",
+  "data": {
+    "database": "ok"
+  }
+}
+
+EDGE INPUT:
+Call while PostgreSQL is unavailable.
+
+EXPECTED OUTPUT:
+HTTP 503
+{
+  "success": false,
+  "message": "Database unreachable"
+}
+
+
+======================================================================
+2. AUTH
+======================================================================
+
+POST /api/auth/signup
+
+INPUT:
+{
+  "name": "Alice Student",
+  "email": "alice@example.com",
+  "phone": "9876543210",
+  "password": "AlicePass123",
+  "role": "student"
+}
+
+EXPECTED OUTPUT:
+HTTP 201
+{
+  "success": true,
+  "message": "Registration successful",
+  "data": {
+    "token": "<JWT>",
+    "user": {
+      "id": 1,
+      "name": "Alice Student",
+      "email": "alice@example.com",
+      "phone": "9876543210",
+      "role": "student",
+      "is_active": true,
+      "created_at": "<timestamp>",
+      "updated_at": "<timestamp>"
+    }
+  }
+}
+
+EDGE INPUT — DUPLICATE EMAIL:
+{
+  "name": "Another Alice",
+  "email": "alice@example.com",
+  "password": "AnotherPass123",
+  "role": "student"
+}
+
+EXPECTED OUTPUT:
+HTTP 409
+{
+  "success": false,
+  "message": "Email is already registered"
+}
+
+EDGE INPUT — INVALID ROLE:
+{
+  "name": "Invalid User",
+  "email": "invalid@example.com",
+  "password": "ValidPass123",
+  "role": "admin"
+}
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+EDGE INPUT — PASSWORD TOO SHORT:
+{
+  "name": "Invalid User",
+  "email": "short@example.com",
+  "password": "abc",
+  "role": "student"
+}
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+EDGE INPUT — PASSWORD WITHOUT LETTER:
+{
+  "name": "Invalid User",
+  "email": "number@example.com",
+  "password": "12345678",
+  "role": "student"
+}
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+EDGE INPUT — PASSWORD WITHOUT DIGIT:
+{
+  "name": "Invalid User",
+  "email": "letters@example.com",
+  "password": "abcdefgh",
+  "role": "student"
+}
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+EDGE INPUT — INVALID EMAIL:
+{
+  "name": "Invalid User",
+  "email": "not-an-email",
+  "password": "ValidPass123",
+  "role": "student"
+}
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+
+POST /api/auth/signup
+
+INPUT:
+{
+  "name": "Bob Staff",
+  "email": "bob@example.com",
+  "phone": "9876543211",
+  "password": "BobPass123",
+  "role": "staff"
+}
+
+EXPECTED OUTPUT:
+HTTP 201 with token and user.role = "staff".
+
+
+POST /api/auth/login
+
+INPUT:
+{
+  "email": "alice@example.com",
+  "password": "AlicePass123"
+}
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "token": "<JWT>",
+    "user": {
+      "id": 1,
+      "name": "Alice Student",
+      "email": "alice@example.com",
+      "phone": "9876543210",
+      "role": "student",
+      "is_active": true,
+      "created_at": "<timestamp>",
+      "updated_at": "<timestamp>"
+    }
+  }
+}
+
+EDGE INPUT — WRONG PASSWORD:
+{
+  "email": "alice@example.com",
+  "password": "WrongPass123"
+}
+
+EXPECTED OUTPUT:
+HTTP 401
+{
+  "success": false,
+  "message": "Invalid email or password"
+}
+
+EDGE INPUT — UNKNOWN EMAIL:
+{
+  "email": "nobody@example.com",
+  "password": "WrongPass123"
+}
+
+EXPECTED OUTPUT:
+HTTP 401
+{
+  "success": false,
+  "message": "Invalid email or password"
+}
+
+EDGE INPUT — INVALID EMAIL / MISSING PASSWORD.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+
+GET /api/auth/me
+
+INPUT:
+Authorization: Bearer <alice_token>
+No body.
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Authenticated user",
+  "data": {
+    "id": 1,
+    "name": "Alice Student",
+    "email": "alice@example.com",
+    "phone": "9876543210",
+    "role": "student",
+    "is_active": true,
+    "created_at": "<timestamp>",
+    "updated_at": "<timestamp>"
+  }
+}
+
+EDGE INPUT — NO AUTHORIZATION HEADER.
+
+EXPECTED OUTPUT:
+HTTP 401.
+
+EDGE INPUT — INVALID JWT.
+
+EXPECTED OUTPUT:
+HTTP 401.
+
+EDGE INPUT — VALID JWT FOR DEACTIVATED USER.
+
+EXPECTED OUTPUT:
+Protected middleware rejects the inactive account with HTTP 401/403 according to authenticate middleware behavior.
+
+
+======================================================================
+3. USER PROFILE
+======================================================================
+
+GET /api/users/me
+
+INPUT:
+Authorization: Bearer <alice_token>
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Profile retrieved",
+  "data": {
+    "id": 1,
+    "name": "Alice Student",
+    "email": "alice@example.com",
+    "phone": "9876543210",
+    "role": "student",
+    "is_active": true,
+    "created_at": "<timestamp>",
+    "updated_at": "<timestamp>"
+  }
+}
+
+
+PATCH /api/users/me
+
+INPUT:
+Authorization: Bearer <alice_token>
+{
+  "name": "Alice Updated",
+  "phone": "9999999999"
+}
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Profile updated",
+  "data": {
+    "id": 1,
+    "name": "Alice Updated",
+    "email": "alice@example.com",
+    "phone": "9999999999",
+    "role": "student",
+    "is_active": true,
+    "created_at": "<timestamp>",
+    "updated_at": "<timestamp>"
+  }
+}
+
+EDGE INPUT — ONLY NAME:
+{
+  "name": "Alice Only Name"
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with only name changed.
+
+EDGE INPUT — ONLY PHONE:
+{
+  "phone": "8888888888"
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with only phone changed.
+
+EDGE INPUT — EMPTY OBJECT:
+{}
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+
+PATCH /api/users/me/password
+
+INPUT:
+Authorization: Bearer <alice_token>
+{
+  "currentPassword": "AlicePass123",
+  "newPassword": "AliceNew123"
+}
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Password changed",
+  "data": null
+}
+
+EDGE INPUT — WRONG CURRENT PASSWORD:
+{
+  "currentPassword": "WrongPass123",
+  "newPassword": "AliceNew123"
+}
+
+EXPECTED OUTPUT:
+HTTP 400
+{
+  "success": false,
+  "message": "Current password is incorrect"
+}
+
+EDGE INPUT — SAME PASSWORD:
+{
+  "currentPassword": "AliceNew123",
+  "newPassword": "AliceNew123"
+}
+
+EXPECTED OUTPUT:
+HTTP 400
+{
+  "success": false,
+  "message": "New password must differ from the current password"
+}
+
+EDGE INPUT — INVALID NEW PASSWORD.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+
+======================================================================
+4. CAFETERIAS
+======================================================================
+
+GET /api/cafeterias
+
+INPUT:
+Authorization: Bearer <token>
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Cafeterias retrieved",
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 0
+  }
+}
+
+EDGE INPUT:
+GET /api/cafeterias?page=1&limit=10&search=canteen
+
+EXPECTED OUTPUT:
+HTTP 200 with matching cafeteria list.
+
+
+POST /api/cafeterias
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "name": "Main Cafeteria",
+  "location": "Block A",
+  "image": "https://example.com/cafeteria.jpg"
+}
+
+EXPECTED OUTPUT:
+HTTP 201 with the created cafeteria containing its generated id and fields including:
+id, name, image, location, is_open, is_active, created_at, updated_at.
+
+EDGE INPUT — STUDENT TOKEN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+EDGE INPUT — MISSING NAME / INVALID BODY.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+
+GET /api/cafeterias/1
+
+INPUT:
+Authorization: Bearer <token>
+
+EXPECTED OUTPUT:
+HTTP 200 with cafeteria id 1.
+
+EDGE INPUT — ID DOES NOT EXIST:
+GET /api/cafeterias/99999
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+PATCH /api/cafeterias/1
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "name": "Main Cafeteria Updated",
+  "location": "Block B"
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with the updated cafeteria.
+
+EDGE INPUT — NON-ADMIN USER.
+
+EXPECTED OUTPUT:
+HTTP 403 or controller authorization error.
+
+EDGE INPUT — ID DOES NOT EXIST.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+DELETE /api/cafeterias/1
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with successful deletion result.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+EDGE INPUT — ID DOES NOT EXIST.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+PATCH /api/cafeterias/1/status
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "isOpen": false
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with cafeteria showing is_open = false.
+
+EDGE INPUT — NON-ADMIN USER.
+
+EXPECTED OUTPUT:
+HTTP 403 or controller authorization error.
+
+EDGE INPUT — INVALID isOpen TYPE:
+{
+  "isOpen": "false"
+}
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+
+======================================================================
+5. CAFETERIA STAFF
+======================================================================
+
+GET /api/cafeterias/1/staff
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Staff retrieved",
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 0
+  }
+}
+
+EDGE INPUT:
+GET /api/cafeterias/1/staff?role=staff
+
+EXPECTED OUTPUT:
+HTTP 200 with only staff-role assignments.
+
+
+POST /api/cafeterias/1/staff
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "userId": <bob_user_id>,
+  "role": "staff"
+}
+
+EXPECTED OUTPUT:
+HTTP 201
+{
+  "success": true,
+  "message": "Staff assigned",
+  "data": {
+    "staff_id": "<generated id>",
+    "user_id": <bob_user_id>,
+    "name": "Bob Staff",
+    "email": "bob@example.com",
+    "phone": "9876543211",
+    "cafeteria_id": 1,
+    "role": "staff",
+    "created_at": "<timestamp>",
+    "updated_at": "<timestamp>"
+  }
+}
+
+EDGE INPUT — SAME USER ASSIGNED AGAIN.
+
+EXPECTED OUTPUT:
+HTTP 409
+{
+  "success": false,
+  "message": "User is already assigned to this cafeteria"
+}
+
+EDGE INPUT — USER DOES NOT EXIST.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — USER ROLE IS student/staff/admin INSTEAD OF cafe_staff.
+
+EXPECTED OUTPUT:
+HTTP 400.
+
+EDGE INPUT — DEACTIVATED cafe_staff USER.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — role = manager WITH ADMIN TOKEN.
+
+EXPECTED OUTPUT:
+HTTP 201 if no manager exists.
+
+
+POST /api/cafeterias/1/staff
+
+INPUT:
+Authorization: Bearer <cafe_manager_token>
+{
+  "userId": <another_cafe_staff_user_id>,
+  "role": "manager"
+}
+
+EXPECTED OUTPUT:
+HTTP 403
+{
+  "success": false,
+  "message": "Only an admin can assign a manager"
+}
+
+
+PATCH /api/cafeterias/1/staff/<staffId>
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "role": "manager"
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with assignment role = "manager".
+
+EDGE INPUT — NON-ADMIN ATTEMPTS TO CREATE/CHANGE MANAGER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+EDGE INPUT — SAME ROLE:
+{
+  "role": "staff"
+}
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Role unchanged",
+  "data": <existing assignment>
+}
+
+EDGE INPUT — INVALID staffId.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+DELETE /api/cafeterias/1/staff/<staffId>
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Staff assignment removed",
+  "data": {
+    "staffId": <staffId>,
+    "removed": true
+  }
+}
+
+EDGE INPUT — NON-ADMIN REMOVES MANAGER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+EDGE INPUT — UNKNOWN ASSIGNMENT.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+======================================================================
+6. CATEGORIES
+======================================================================
+
+GET /api/categories
+
+INPUT:
+Authorization: Bearer <token>
+
+EXPECTED OUTPUT:
+HTTP 200 with an empty list initially.
+
+EDGE INPUT:
+GET /api/categories?search=food&page=1&limit=10
+
+EXPECTED OUTPUT:
+HTTP 200 with matching categories.
+
+
+GET /api/categories/1
+
+INPUT:
+Authorization: Bearer <token>
+
+EXPECTED OUTPUT:
+HTTP 404 initially because database is empty.
+
+
+POST /api/categories
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "name": "Beverages",
+  "description": "Hot and cold drinks"
+}
+
+EXPECTED OUTPUT:
+HTTP 201 with generated category id, name, description, created_at, updated_at.
+
+EDGE INPUT — DUPLICATE CATEGORY NAME.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — EMPTY NAME.
+
+EXPECTED OUTPUT:
+HTTP 400.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+PATCH /api/categories/1
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "name": "Drinks",
+  "description": "All beverages"
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with updated category.
+
+EDGE INPUT — UNKNOWN ID.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+DELETE /api/categories/1
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with successful deletion result.
+
+EDGE INPUT — UNKNOWN ID.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — CATEGORY REFERENCED BY AN ITEM.
+
+EXPECTED OUTPUT:
+HTTP 409 / database constraint error according to delete controller behavior.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+======================================================================
+7. ITEMS
+======================================================================
+
+GET /api/items
+
+INPUT:
+Authorization: Bearer <token>
+
+EXPECTED OUTPUT:
+HTTP 200 with empty list initially.
+
+EDGE INPUT:
+GET /api/items?search=coffee&categoryId=1&page=1&limit=10
+
+EXPECTED OUTPUT:
+HTTP 200 with matching items.
+
+
+GET /api/items/1
+
+INPUT:
+Authorization: Bearer <token>
+
+EXPECTED OUTPUT:
+HTTP 404 initially.
+
+
+POST /api/items
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "name": "Masala Dosa",
+  "description": "South Indian dosa",
+  "categoryId": <beverages_or_food_category_id>,
+  "price": 60,
+  "image": "https://example.com/dosa.jpg"
+}
+
+EXPECTED OUTPUT:
+HTTP 201 with generated item id and item fields.
+
+EDGE INPUT — NEGATIVE PRICE.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+EDGE INPUT — UNKNOWN CATEGORY ID.
+
+EXPECTED OUTPUT:
+HTTP 404 / category-not-found error.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+PATCH /api/items/1
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "name": "Masala Dosa Special",
+  "price": 70
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with updated item.
+
+EDGE INPUT — UNKNOWN ITEM.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — INVALID PRICE.
+
+EXPECTED OUTPUT:
+HTTP 400.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+DELETE /api/items/1
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with successful deletion/soft-deletion result.
+
+EDGE INPUT — UNKNOWN ITEM.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — ITEM USED IN A PAST ORDER.
+
+EXPECTED OUTPUT:
+HTTP 200 with soft-deactivated item rather than destructive deletion.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+======================================================================
+8. CAFETERIA MENU / INVENTORY
+======================================================================
+
+GET /api/cafeterias/1/menu
+
+INPUT:
+Authorization: Bearer <token>
+
+EXPECTED OUTPUT:
+HTTP 200 with menu list.
+
+EDGE INPUT:
+GET /api/cafeterias/1/menu?categoryId=1&search=dosa&availableOnly=true
+
+EXPECTED OUTPUT:
+HTTP 200 with filtered menu.
+
+
+POST /api/cafeterias/1/menu
+
+INPUT:
+Authorization: Bearer <admin_or_cafeteria_manager_token>
+{
+  "itemId": 1,
+  "stock": 50,
+  "reorderLevel": 10
+}
+
+EXPECTED OUTPUT:
+HTTP 201 with cafeteria-menu row containing:
+cafeteria_id, item_id, stock, is_available, last_updated, reorder_level.
+
+EDGE INPUT — UNKNOWN CAFETERIA.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — UNKNOWN ITEM.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — DUPLICATE ITEM IN SAME CAFETERIA.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — UNAUTHORIZED STAFF USER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+PATCH /api/cafeterias/1/menu/1
+
+INPUT:
+Authorization: Bearer <authorized_staff_or_manager_token>
+{
+  "stock": 40,
+  "reorderLevel": 10
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with updated menu row.
+
+EDGE INPUT — UNKNOWN MENU ITEM.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — UNAUTHORIZED CAFETERIA STAFF.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+DELETE /api/cafeterias/1/menu/1
+
+INPUT:
+Authorization: Bearer <authorized_manager_or_admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with successful removal result.
+
+EDGE INPUT — UNKNOWN MENU ITEM.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — UNAUTHORIZED USER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+PATCH /api/cafeterias/1/menu/1/availability
+
+INPUT:
+Authorization: Bearer <authorized_staff_token>
+{
+  "isAvailable": false
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with menu row showing is_available = false.
+
+EDGE INPUT:
+{
+  "isAvailable": true
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with is_available = true.
+
+EDGE INPUT — NON-BOOLEAN isAvailable.
+
+EXPECTED OUTPUT:
+HTTP 400.
+
+
+GET /api/cafeterias/1/inventory
+
+INPUT:
+Authorization: Bearer <authorized_staff_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with inventory/menu rows.
+
+EDGE INPUT:
+GET /api/cafeterias/1/inventory?lowStock=true
+
+EXPECTED OUTPUT:
+HTTP 200 with only low-stock inventory according to query schema/controller behavior.
+
+EDGE INPUT — UNKNOWN CAFETERIA.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+GET /api/cafeterias/1/inventory/low-stock
+
+INPUT:
+Authorization: Bearer <authorized_staff_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with only rows where stock <= reorder_level.
+
+EDGE INPUT — NO MENU ITEMS.
+
+EXPECTED OUTPUT:
+HTTP 200 with empty list.
+
+
+PATCH /api/cafeterias/1/inventory/1
+
+INPUT:
+Authorization: Bearer <authorized_staff_or_manager_token>
+{
+  "stock": 100,
+  "reorderLevel": 20
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with updated inventory/menu row.
+
+EDGE INPUT — NEGATIVE STOCK.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+EDGE INPUT — UNKNOWN ITEM/MENU ENTRY.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+======================================================================
+9. ORDERS
+======================================================================
+
+GET /api/orders
+
+INPUT:
+Authorization: Bearer <alice_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with Alice's orders only.
+Initially:
+{
+  "success": true,
+  "message": "Orders retrieved",
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 0
+  }
+}
+
+EDGE INPUT:
+GET /api/orders?status=not_paid&cafeteriaId=1&page=1&limit=10
+
+EXPECTED OUTPUT:
+HTTP 200 with matching Alice orders.
+
+
+POST /api/orders
+
+INPUT:
+Authorization: Bearer <alice_token>
+{
+  "cafeteriaId": 1,
+  "pickupTime": "<ISO timestamp 1-7 days in the future>",
+  "paymentMethod": "upi",
+  "items": [
+    {
+      "itemId": 1,
+      "quantity": 2
+    }
+  ]
+}
+
+EXPECTED OUTPUT:
+HTTP 201
+{
+  "success": true,
+  "message": "Order placed. Pay externally and submit the payment reference.",
+  "data": {
+    "id": <orderId>,
+    "user_id": 1,
+    "cafeteria_id": 1,
+    "total_amount": 140,
+    "status": "not_paid",
+    "pickup_time": "<timestamp>",
+    "items": [
+      {
+        "item_id": 1,
+        "name": "Masala Dosa Special",
+        "quantity": 2,
+        "unit_price": 70,
+        "line_total": 140
+      }
+    ],
+    "payment": {
+      "payment_method": "upi",
+      "amount": 140,
+      "status": "pending"
+    },
+    "queue": null
+  }
+}
+
+EDGE INPUT — PICKUP TIME IN THE PAST.
+
+EXPECTED OUTPUT:
+HTTP 400
+{
+  "success": false,
+  "message": "Pickup time must be in the future"
+}
+
+EDGE INPUT — PICKUP TIME MORE THAN 7 DAYS AHEAD.
+
+EXPECTED OUTPUT:
+HTTP 400
+{
+  "success": false,
+  "message": "Pickup time must be within the next 7 days"
+}
+
+EDGE INPUT — ITEM QUANTITY = 21.
+
+EXPECTED OUTPUT:
+HTTP 400
+{
+  "success": false,
+  "message": "At most 20 of one item per order"
+}
+
+EDGE INPUT — SAME ITEM TWICE WITH TOTAL > 20:
+{
+  "cafeteriaId": 1,
+  "pickupTime": "<future ISO timestamp>",
+  "paymentMethod": "upi",
+  "items": [
+    {"itemId": 1, "quantity": 15},
+    {"itemId": 1, "quantity": 6}
+  ]
+}
+
+EXPECTED OUTPUT:
+HTTP 400
+{
+  "success": false,
+  "message": "At most 20 of one item per order"
+}
+
+EDGE INPUT — UNKNOWN CAFETERIA.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — CLOSED CAFETERIA.
+
+EXPECTED OUTPUT:
+HTTP 409
+{
+  "success": false,
+  "message": "This cafeteria is currently closed"
+}
+
+EDGE INPUT — ITEM NOT IN CAFETERIA MENU.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — ITEM UNAVAILABLE.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — INSUFFICIENT STOCK.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — EMPTY ITEMS ARRAY.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+
+GET /api/orders/1
+
+INPUT:
+Authorization: Bearer <alice_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with full order detail:
+id, user_id, cafeteria_id, cafeteria_name, total_amount, status,
+pickup_time, created_at, updated_at, customer_name, customer_email,
+items, payment, queue.
+
+EDGE INPUT — UNKNOWN ORDER.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — ANOTHER STUDENT'S ORDER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+PATCH /api/orders/1/status
+
+INPUT:
+Authorization: Bearer <cafeteria_staff_or_admin_token>
+{
+  "status": "preparing"
+}
+
+EXPECTED OUTPUT:
+For a paid order:
+HTTP 200 with order.status = "preparing".
+
+EDGE INPUT — STUDENT TOKEN.
+
+EXPECTED OUTPUT:
+HTTP 403
+{
+  "success": false,
+  "message": "Only cafeteria staff or admins can update order status"
+}
+
+EDGE INPUT — not_paid -> preparing.
+
+EXPECTED OUTPUT:
+HTTP 409 because not_paid can only transition to cancelled.
+
+EDGE INPUT — paid -> ready.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — preparing -> ready.
+
+EXPECTED OUTPUT:
+HTTP 200.
+
+EDGE INPUT — ready -> collected.
+
+EXPECTED OUTPUT:
+HTTP 200.
+
+EDGE INPUT — collected -> anything.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — cancelled -> anything.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+
+PATCH /api/orders/1/cancel
+
+INPUT:
+Authorization: Bearer <alice_token>
+
+EXPECTED OUTPUT FOR not_paid ORDER:
+HTTP 200 with order.status = "cancelled".
+Payment becomes failed.
+Stock is restored when the menu row still exists.
+Queue entry is removed if present.
+
+EDGE INPUT — paid ORDER.
+
+EXPECTED OUTPUT:
+HTTP 200 with order.status = "cancelled".
+Payment becomes refunded.
+Stock is restored when menu rows exist.
+Queue entry is removed.
+
+EDGE INPUT — preparing/ready/collected/cancelled ORDER.
+
+EXPECTED OUTPUT:
+HTTP 409
+{
+  "success": false,
+  "message": "An order that is <status> can no longer be cancelled"
+}
+
+EDGE INPUT — UNKNOWN ORDER.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — ANOTHER USER'S ORDER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+======================================================================
+10. PAYMENTS
+======================================================================
+
+GET /api/orders/1/payment
+
+INPUT:
+Authorization: Bearer <alice_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with payment record for order 1.
+
+EDGE INPUT — UNKNOWN ORDER.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — ORDER BELONGS TO ANOTHER USER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+POST /api/payments
+
+INPUT:
+Authorization: Bearer <alice_token>
+{
+  "orderId": 1,
+  "transactionId": "TXN-100001"
+}
+
+EXPECTED OUTPUT:
+HTTP 201 or HTTP 200 according to submit-payment controller response,
+with payment showing:
+order_id = 1,
+transaction_id = "TXN-100001",
+status = "pending" or the controller's accepted resubmission status.
+
+EDGE INPUT — UNKNOWN ORDER.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — ORDER DOES NOT BELONG TO USER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+EDGE INPUT — EMPTY TRANSACTION ID.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+EDGE INPUT — DUPLICATE TRANSACTION ID.
+
+EXPECTED OUTPUT:
+HTTP 409 if uniqueness constraint/controller rejects it.
+
+
+GET /api/payments/1
+
+INPUT:
+Authorization: Bearer <alice_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with payment record.
+
+EDGE INPUT — UNKNOWN PAYMENT.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — PAYMENT BELONGS TO ANOTHER USER / UNAUTHORIZED STAFF.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+PATCH /api/payments/1/verify
+
+INPUT:
+Authorization: Bearer <cafeteria_staff_or_admin_token>
+{
+  "status": "success",
+  "staffNote": "Payment verified"
+}
+
+EXPECTED OUTPUT:
+HTTP 200.
+Payment status becomes "success".
+Order status becomes "paid".
+verified_at is populated.
+verified_by contains the verifying user's id.
+The order becomes eligible for the queue.
+
+EDGE INPUT — VERIFY FAILED:
+{
+  "status": "failed",
+  "staffNote": "Payment not received"
+}
+
+EXPECTED OUTPUT:
+HTTP 200.
+Payment status becomes "failed".
+Order remains "not_paid".
+
+EDGE INPUT — NON-STAFF / NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+EDGE INPUT — PAYMENT ALREADY VERIFIED.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — UNKNOWN PAYMENT.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+======================================================================
+11. QUEUE
+======================================================================
+
+GET /api/cafeterias/1/queue
+
+INPUT:
+Authorization: Bearer <authorized_cafeteria_staff_or_admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200
+{
+  "success": true,
+  "message": "Queue retrieved",
+  "data": {
+    "queue": {
+      "id": "<queue id>",
+      "cafeteria_id": 1,
+      "is_active": true,
+      "updated_at": "<timestamp>"
+    },
+    "items": []
+  }
+}
+
+EDGE INPUT — NO QUEUE EXISTS.
+
+EXPECTED OUTPUT:
+HTTP 200 with queue = null and items = [].
+
+
+GET /api/orders/1/queue
+
+INPUT:
+Authorization: Bearer <alice_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with:
+{
+  "queue_item_id": <id>,
+  "position": <position>,
+  "orders_ahead": <count>
+}
+
+EDGE INPUT — ORDER NOT IN QUEUE.
+
+EXPECTED OUTPUT:
+HTTP 200 with queue = null.
+
+EDGE INPUT — UNKNOWN ORDER.
+
+EXPECTED OUTPUT:
+HTTP 404 or empty queue-position result according to controller access behavior.
+
+
+POST /api/cafeterias/1/queue/orders/1
+
+INPUT:
+Authorization: Bearer <authorized_staff_or_manager_token>
+
+No body.
+
+EXPECTED OUTPUT:
+HTTP 200/201 with queue entry containing:
+queue_item_id, order_id, position and queue information.
+
+EDGE INPUT — ORDER NOT PAID.
+
+EXPECTED OUTPUT:
+HTTP 409.
+
+EDGE INPUT — ORDER ALREADY QUEUED.
+
+EXPECTED OUTPUT:
+HTTP 409 or idempotent existing queue result according to queue constraint/controller behavior.
+
+EDGE INPUT — ORDER FROM ANOTHER CAFETERIA.
+
+EXPECTED OUTPUT:
+HTTP 409/404.
+
+EDGE INPUT — UNKNOWN ORDER.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — UNAUTHORIZED STAFF.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+PATCH /api/queue/1
+
+INPUT:
+Authorization: Bearer <authorized_staff_or_manager_token>
+{
+  "position": 1
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with queue item moved to position 1.
+
+EDGE INPUT — position = 0.
+
+EXPECTED OUTPUT:
+HTTP 200 with position clamped to 1.
+
+EDGE INPUT — position greater than queue length.
+
+EXPECTED OUTPUT:
+HTTP 200 with position clamped to the queue length.
+
+EDGE INPUT — UNKNOWN queueItemId.
+
+EXPECTED OUTPUT:
+HTTP 404 or no-op according to controller behavior.
+
+EDGE INPUT — UNAUTHORIZED USER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+DELETE /api/queue/1
+
+INPUT:
+Authorization: Bearer <authorized_staff_or_manager_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with:
+{
+  "staffId": <queueItemId or controller result>,
+  "removed": true
+}
+or the controller's queue-removal success object.
+
+EDGE INPUT — UNKNOWN queue item.
+
+EXPECTED OUTPUT:
+HTTP 404 or no-op according to controller behavior.
+
+EDGE INPUT — UNAUTHORIZED USER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+======================================================================
+12. ADMIN USER MANAGEMENT
+======================================================================
+
+GET /api/admin/users
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with all users.
+
+EDGE INPUT:
+GET /api/admin/users?search=alice&role=student&isActive=true&page=1&limit=10
+
+EXPECTED OUTPUT:
+HTTP 200 with matching users only.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+GET /api/admin/users/1
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with Alice's profile.
+
+EDGE INPUT — UNKNOWN USER.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+PATCH /api/admin/users/2/role
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "role": "cafe_staff"
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with user.role = "cafe_staff".
+
+EDGE INPUT — ADMIN CHANGES OWN ROLE.
+
+EXPECTED OUTPUT:
+HTTP 400
+{
+  "success": false,
+  "message": "You cannot change your own role"
+}
+
+EDGE INPUT — UNKNOWN USER.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — role = "admin"/"student"/"staff"/"cafe_staff".
+
+EXPECTED OUTPUT:
+HTTP 200 for a valid target user and valid role.
+
+
+PATCH /api/admin/users/2/status
+
+INPUT:
+Authorization: Bearer <admin_token>
+{
+  "isActive": false
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with user.is_active = false and message "User deactivated".
+
+EDGE INPUT — ACTIVATE:
+{
+  "isActive": true
+}
+
+EXPECTED OUTPUT:
+HTTP 200 with user.is_active = true and message "User activated".
+
+EDGE INPUT — ADMIN DEACTIVATES SELF.
+
+EXPECTED OUTPUT:
+HTTP 400
+{
+  "success": false,
+  "message": "You cannot deactivate your own account"
+}
+
+EDGE INPUT — UNKNOWN USER.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+GET /api/admin/analytics
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with system-level analytics for the requested date range.
+
+EDGE INPUT:
+GET /api/admin/analytics?dateFrom=2026-10-01&dateTo=2026-10-06
+
+EXPECTED OUTPUT:
+HTTP 200 with analytics for that range.
+
+EDGE INPUT — INVALID DATE RANGE.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+GET /api/admin/orders
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 paginated list of all orders.
+
+EDGE INPUT:
+GET /api/admin/orders?status=paid&cafeteriaId=1
+
+EXPECTED OUTPUT:
+HTTP 200 with matching orders.
+
+
+GET /api/admin/payments
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 paginated list of payments.
+
+EDGE INPUT:
+GET /api/admin/payments?status=success&paymentMethod=upi
+
+EXPECTED OUTPUT:
+HTTP 200 with matching payments.
+
+EDGE INPUT — NON-ADMIN.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+======================================================================
+13. CAFETERIA ANALYTICS
+======================================================================
+
+GET /api/analytics/1
+
+INPUT:
+Authorization: Bearer <authorized_cafeteria_staff_or_admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with cafeteria analytics for the default/requested range.
+
+EDGE INPUT:
+GET /api/analytics/1?dateFrom=2026-10-01&dateTo=2026-10-06
+
+EXPECTED OUTPUT:
+HTTP 200 with analytics restricted to the supplied range.
+
+EDGE INPUT — UNKNOWN CAFETERIA.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+EDGE INPUT — UNAUTHORIZED USER.
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+EDGE INPUT — INVALID DATE.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+EDGE INPUT — dateFrom AFTER dateTo.
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+
+======================================================================
+14. CROSS-ENDPOINT EMPTY-DATABASE TESTS
+======================================================================
+
+GET /api/cafeterias
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 200, empty list.
+
+GET /api/categories
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 200, empty list.
+
+GET /api/items
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 200, empty list.
+
+GET /api/orders
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 200, empty list.
+
+GET /api/payments/99999
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+GET /api/orders/99999
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+GET /api/cafeterias/99999
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+GET /api/cafeterias/99999/menu
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+GET /api/cafeterias/99999/staff
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 404 or authorization/not-found response from cafeteria access check.
+
+GET /api/queue/99999
+
+INPUT:
+Authorization: Bearer <valid user token>
+
+EXPECTED OUTPUT:
+HTTP 404 or queue-item not-found response.
+
+GET /api/admin/users
+
+INPUT:
+Authorization: Bearer <admin_token>
+
+EXPECTED OUTPUT:
+HTTP 200 with empty user list before the first signup.
+
+
+======================================================================
+15. AUTHORIZATION EDGE TESTS
+======================================================================
+
+INPUT:
+No Authorization header to any protected endpoint.
+
+EXPECTED OUTPUT:
+HTTP 401.
+
+INPUT:
+Authorization: Bearer invalid-token
+
+EXPECTED OUTPUT:
+HTTP 401.
+
+INPUT:
+Authorization: Bearer <student_token>
+POST /api/items
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+INPUT:
+Authorization: Bearer <student_token>
+POST /api/categories
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+INPUT:
+Authorization: Bearer <student_token>
+POST /api/cafeterias
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+INPUT:
+Authorization: Bearer <student_token>
+GET /api/admin/users
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+INPUT:
+Authorization: Bearer <student_token>
+PATCH /api/admin/users/2/status
+
+EXPECTED OUTPUT:
+HTTP 403.
+
+
+======================================================================
+16. VALIDATION EDGE TESTS
+======================================================================
+
+INPUT:
+Any protected endpoint with malformed numeric path parameter:
+GET /api/items/not-a-number
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+INPUT:
+GET /api/cafeterias/-1
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+INPUT:
+GET /api/orders/0
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+INPUT:
+GET /api/items/1?page=0
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+INPUT:
+GET /api/items/1?limit=0
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+INPUT:
+GET /api/items/1?limit=<value above schema maximum>
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+INPUT:
+Any JSON endpoint with malformed JSON.
+
+EXPECTED OUTPUT:
+HTTP 400.
+
+INPUT:
+Any JSON endpoint with a body exceeding 100 KB.
+
+EXPECTED OUTPUT:
+HTTP 413.
+
+INPUT:
+Unsupported HTTP method for an otherwise valid path.
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+
+======================================================================
+17. ORDER LIFECYCLE END-TO-END INPUT / OUTPUT
+======================================================================
+
+INPUT:
+1. Sign up student Alice.
+2. Sign up user Bob with role "staff".
+3. Sign up admin is NOT possible through signup; create/promote admin using the database or existing admin bootstrap.
+4. Admin creates cafeteria 1.
+5. Admin creates category 1.
+6. Admin creates item 1.
+7. Authorized cafeteria staff adds item 1 to cafeteria 1 with stock 10.
+8. Alice creates an order for quantity 2 with future pickup time.
+
+EXPECTED OUTPUT:
+Order created with:
+status = "not_paid"
+payment.status = "pending"
+queue = null
+stock = 8.
+
+
+INPUT:
+Alice submits the external payment reference for order 1.
+
+EXPECTED OUTPUT:
+Payment transaction_id populated and payment remains pending until staff verification.
+
+
+INPUT:
+Authorized cafeteria staff verifies payment as success.
+
+EXPECTED OUTPUT:
+payment.status = "success"
+order.status = "paid"
+verified_at populated
+verified_by populated.
+
+
+INPUT:
+Authorized staff enqueues order 1.
+
+EXPECTED OUTPUT:
+Queue item created at position 1.
+Order detail now contains queue_item_id, position = 1, orders_ahead = 0.
+
+
+INPUT:
+Authorized staff changes:
+PATCH /api/orders/1/status
+{
+  "status": "preparing"
+}
+
+EXPECTED OUTPUT:
+order.status = "preparing".
+
+
+INPUT:
+Authorized staff changes:
+PATCH /api/orders/1/status
+{
+  "status": "ready"
+}
+
+EXPECTED OUTPUT:
+order.status = "ready".
+
+
+INPUT:
+Authorized staff changes:
+PATCH /api/orders/1/status
+{
+  "status": "collected"
+}
+
+EXPECTED OUTPUT:
+order.status = "collected".
+
+
+INPUT:
+Try:
+PATCH /api/orders/1/cancel
+
+EXPECTED OUTPUT:
+HTTP 409 because collected orders cannot be cancelled.
+
+
+======================================================================
+18. ORDER CANCELLATION LIFECYCLE
+======================================================================
+
+INPUT:
+Create a new order while stock = 10 with quantity = 3.
+
+EXPECTED OUTPUT:
+Order status = "not_paid".
+Stock becomes 7.
+
+
+INPUT:
+PATCH /api/orders/<orderId>/cancel
+
+EXPECTED OUTPUT:
+HTTP 200.
+Order status = "cancelled".
+Payment status = "failed".
+Stock returns to 10.
+Queue entry is absent.
+
+
+======================================================================
+19. PAYMENT FAILURE LIFECYCLE
+======================================================================
+
+INPUT:
+Create a new order.
+
+EXPECTED OUTPUT:
+Order status = "not_paid".
+Payment status = "pending".
+
+
+INPUT:
+Submit payment reference.
+
+EXPECTED OUTPUT:
+Payment status remains "pending".
+
+
+INPUT:
+Staff verifies:
+{
+  "status": "failed",
+  "staffNote": "No payment received"
+}
+
+EXPECTED OUTPUT:
+HTTP 200.
+Payment status = "failed".
+Order status remains "not_paid".
+
+
+INPUT:
+Try to verify the failed payment as success again.
+
+EXPECTED OUTPUT:
+HTTP 409 if verification requires a pending payment.
+
+
+======================================================================
+20. PAGINATION EDGE TESTS
+======================================================================
+
+INPUT:
+GET /api/items?page=1&limit=1
+
+EXPECTED OUTPUT:
+HTTP 200.
+At most 1 item in data.
+Pagination total and totalPages are correct.
+
+INPUT:
+GET /api/items?page=999999&limit=20
+
+EXPECTED OUTPUT:
+HTTP 200.
+data = [].
+Pagination reports the actual total.
+
+INPUT:
+GET /api/admin/users?page=1&limit=1
+
+EXPECTED OUTPUT:
+HTTP 200.
+At most 1 user in data.
+
+INPUT:
+GET /api/orders?page=1&limit=1
+
+EXPECTED OUTPUT:
+HTTP 200.
+At most 1 order in data.
+
+
+======================================================================
+21. DATE FILTER EDGE TESTS
+======================================================================
+
+INPUT:
+GET /api/orders?dateFrom=2026-10-01&dateTo=2026-10-06
+
+EXPECTED OUTPUT:
+HTTP 200 with orders created from the start of 2026-10-01 through the end of 2026-10-06.
+
+INPUT:
+GET /api/orders?dateFrom=2026-10-06&dateTo=2026-10-01
+
+EXPECTED OUTPUT:
+HTTP 400 validation error.
+
+INPUT:
+GET /api/admin/analytics?dateFrom=2026-10-01&dateTo=2026-10-06
+
+EXPECTED OUTPUT:
+HTTP 200 with analytics for that range.
+
+INPUT:
+GET /api/analytics/1?dateFrom=2026-10-01&dateTo=2026-10-06
+
+EXPECTED OUTPUT:
+HTTP 200 with cafeteria analytics for that range.
+
+
+======================================================================
+22. NOT-FOUND / ROUTING TESTS
+======================================================================
+
+INPUT:
+GET /api/does-not-exist
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+INPUT:
+GET /api/cafeterias/1/does-not-exist
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+INPUT:
+POST /api/items/1
+
+EXPECTED OUTPUT:
+HTTP 404 because POST is not defined for /api/items/:id.
+
+INPUT:
+PATCH /api/categories
+
+EXPECTED OUTPUT:
+HTTP 404.
+
+INPUT:
+DELETE /api/orders/1/status
+
+EXPECTED OUTPUT:
+HTTP 404.
