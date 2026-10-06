@@ -1,0 +1,12 @@
+export { default as AdminRouter } from "./admin.routes";
+export { default as AnalyticsRouter } from "./analytics.routes";
+export { default as AuthRouter } from "./auth.routes";
+export { default as CafeteriaRouter } from "./cafeteria.routes";
+export { default as CategoryRouter } from "./category.routes";
+export { default as ItemRouter } from "./item.routes";
+export { default as MenuRouter } from "./menu.routes";
+export { default as OrderRouter } from "./order.routes";
+export { default as PaymentRouter } from "./payment.routes";
+export { default as QueueRouter } from "./queue.routes";
+export { default as StaffRouter } from "./staff.routes";
+export { default as UserRouter } from "./user.routes";
