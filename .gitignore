@@ -1,3 +1,4 @@
+.env
 node_modules
 logs
 *.log
@@ -7,3 +8,5 @@ dist-ssr
 *.local
 .vscode/*
 !.vscode/extensions.json
+idea.md
+test.md
