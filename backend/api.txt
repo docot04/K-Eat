@@ -1,4 +1,4 @@
-CampusBite API — API TEST INPUT / EXPECTED OUTPUT
+K-Eat API — API TEST INPUT / EXPECTED OUTPUT
 
 ======================================================================
 COMMON RESPONSE SHAPES
@@ -51,7 +51,7 @@ EXPECTED OUTPUT:
 HTTP 200
 {
   "success": true,
-  "message": "CampusBite API is running",
+  "message": "K-Eat API is running",
   "data": {
     "status": "ok"
   }
