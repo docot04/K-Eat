@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { Loader2, RotateCw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export type FoodModelType = "burger" | "pizza" | "coffee" | "donut" | "dish";
 
@@ -369,15 +369,6 @@ export const ThreeCanvasFood: React.FC<ThreeCanvasFoodProps> = ({
         className="w-full h-full cursor-grab active:cursor-grabbing select-none"
         title="Interactive 3D WebGL • Click & drag horizontally or vertically to rotate"
       />
-
-      {/* Discreet 360 Drag Hint */}
-      <div className="absolute bottom-1 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15 shadow-2xs text-[11px] font-medium text-slate-300 pointer-events-none select-none z-20">
-        <RotateCw
-          className="w-3 h-3 text-amber-400 animate-spin"
-          style={{ animationDuration: "10s" }}
-        />
-        <span>Drag to rotate 360°</span>
-      </div>
     </div>
   );
 };
