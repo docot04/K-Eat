@@ -147,7 +147,7 @@ export const Hero3DShowcase: React.FC = () => {
         setIsHovered(false);
         setMouseOffset({ x: 0, y: 0 });
       }}
-      className="relative w-full min-h-[720px] lg:min-h-[820px] bg-emerald-couture text-[#f0fdf4] overflow-hidden flex flex-col justify-between select-none pt-4 pb-12"
+      className="relative w-full min-h-[720px] lg:min-h-[820px] bg-emerald-couture text-[#f0fdf4] overflow-hidden flex flex-col justify-between select-none pt-24 sm:pt-28 pb-12"
     >
       {/* ======================================================== */}
       {/* 1. FLUID EMERALD SILK AURORA & PARALLAX BACKGROUND      */}

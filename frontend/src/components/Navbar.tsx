@@ -24,8 +24,8 @@ export const Navbar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-40 w-full pt-3 px-4 sm:px-6 pointer-events-none">
-      <div className="max-w-6xl mx-auto h-14 rounded-full bg-[#03231c]/65 backdrop-blur-2xl border border-[#34d399]/25 shadow-[0_16px_40px_rgba(0,15,10,0.5),inset_0_1px_1px_rgba(167,243,208,0.2)] px-5 flex items-center justify-between text-[#f0fdf4] pointer-events-auto transition-all">
+    <header className="fixed top-0 left-0 right-0 z-50 pt-3 px-4 sm:px-6 pointer-events-none">
+      <div className="max-w-6xl mx-auto h-14 rounded-full bg-[#022119]/80 backdrop-blur-2xl border border-[#34d399]/25 shadow-[0_16px_40px_rgba(0,15,10,0.5),inset_0_1px_1px_rgba(167,243,208,0.2)] px-5 flex items-center justify-between text-[#f0fdf4] pointer-events-auto transition-all">
         {/* Brand */}
         <div className="flex items-center gap-7">
           <Link to="/" className="flex items-center gap-2.5 group">
